@@ -4,6 +4,7 @@ using PluginManager.Api.Capabilities.Implementations.Commands;
 using PluginManager.Api.Capabilities.Implementations.Events.GameEvents;
 using PluginManager.Api.Capabilities.Implementations.Translations;
 using PluginManager.Api.Capabilities.Implementations.Utils;
+using PluginManager.Api.Contracts;
 using PluginManager.Api.Hooks;
 using PluginManager.Config;
 using PluginManager.Localization;
@@ -13,13 +14,14 @@ namespace BloodMoonPlugin;
 public class BloodMoonPlugin : BasePlugin
 {
     public override string ModuleName => "BloodMoonPlugin";
-    public override string ModuleVersion => "1.1.0";
+    public override string ModuleVersion => "1.1.1";
     public override string ModuleAuthor => "kotfoxtrot";
     public override string ModuleDescription => "Shows how many days are left until the next Blood Moon.";
 
     private IPlayerLocalization _localization;
     private IPlayerUtil _playerUtil;
     private IGameUtil _gameUtil;
+    private IGameStatsUtil _statsUtil;
     private PluginConfig _config;
 
     private int _lastNotifiedDay = -1;
@@ -28,6 +30,7 @@ public class BloodMoonPlugin : BasePlugin
     {
         _localization = GetPlayerLocalization();
         _playerUtil = Capabilities.Get<IPlayerUtil>();
+        _statsUtil = Capabilities.Get<IGameStatsUtil>();
         _gameUtil = Capabilities.Get<IGameUtil>();
         _config = ReadPluginConfig();
 
@@ -37,41 +40,45 @@ public class BloodMoonPlugin : BasePlugin
 
     private void OnBloodMoon(ICommandContext ctx)
     {
-        var bloodMoonDay = _gameUtil.GetBloodMoonDay();
+        var bloodMoonDay = _statsUtil.GetInt(GameStats.BloodMoonDay);
 
         if (bloodMoonDay <= 0)
         {
-            Reply(ctx, "Disabled");
+            Reply(ctx.ClientInfo, "Disabled");
             return;
         }
 
         if (_gameUtil.IsBloodMoonActive())
         {
-            Reply(ctx, "Active");
+            Reply(ctx.ClientInfo, "Active");
             return;
         }
 
-        var daysLeft = bloodMoonDay - _gameUtil.GetCurrentDay();
+        var daysLeft = bloodMoonDay - _gameUtil.WorldTimeToDays(_gameUtil.GetWorldTime());
 
         if (daysLeft <= 0)
         {
-            Reply(ctx, "Coming tonight");
+            Reply(ctx.ClientInfo, "Coming tonight");
             return;
         }
 
-        Reply(ctx, "Days left", daysLeft);
+        Reply(ctx.ClientInfo, "Days left", daysLeft);
     }
 
     private HookResult OnGameUpdate(GameUpdateEvent evt)
     {
-        var bloodMoonDay = _gameUtil.GetBloodMoonDay();
+        var bloodMoonDay = _statsUtil.GetInt(GameStats.BloodMoonDay);
+
         if (bloodMoonDay <= 0)
             return HookResult.Continue;
 
-        if (_gameUtil.GetCurrentHour() != _config.NotifyHour)
+        var worldTime = _gameUtil.GetWorldTime();
+
+        if (_gameUtil.WorldTimeToHours(worldTime) != _config.NotifyHour)
             return HookResult.Continue;
 
-        var day = _gameUtil.GetCurrentDay();
+        var day = _gameUtil.WorldTimeToDays(worldTime);
+
         if (day == _lastNotifiedDay)
             return HookResult.Continue;
 
@@ -95,17 +102,15 @@ public class BloodMoonPlugin : BasePlugin
     {
         foreach (var clientInfo in _playerUtil.GetClientInfoList())
         {
-            var tag = _localization.Translate(clientInfo.CrossplatformId, "Tag");
-            var text = _localization.Translate(clientInfo.CrossplatformId, key, args);
-            _playerUtil.PrintToChat(clientInfo.EntityId, $"{tag}{text}");
+            Reply(clientInfo, key, args);
         }
     }
 
-    private void Reply(ICommandContext ctx, string key, params object[] args)
+    private void Reply(ClientInfo client, string key, params object[] args)
     {
-        var tag = _localization.Translate(ctx.ClientInfo.CrossplatformId, "Tag");
-        var text = _localization.Translate(ctx.ClientInfo.CrossplatformId, key, args);
-        _playerUtil.PrintToChat(ctx.ClientInfo.EntityId, $"{tag}{text}");
+        var tag = _localization.Translate(client.CrossplatformId, "Tag");
+        var text = _localization.Translate(client.CrossplatformId, key, args);
+        _playerUtil.PrintToChat(client.EntityId, $"{tag}{text}");
     }
 
     private PluginConfig ReadPluginConfig()
