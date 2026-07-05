@@ -47,6 +47,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="BloodMoonPlugin.cs" />
+        <Compile Include="PluginConfig.cs" />
         <Compile Include="Properties\AssemblyInfo.cs"/>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
@@ -57,6 +58,10 @@
         </Reference>
         <Reference Include="PluginManager.Localization">
             <HintPath>$(PluginManagerApiPath)PluginManager.Localization.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="PluginManager.Config">
+            <HintPath>$(PluginManagerApiPath)PluginManager.Config.dll</HintPath>
             <Private>False</Private>
         </Reference>
     </ItemGroup>
