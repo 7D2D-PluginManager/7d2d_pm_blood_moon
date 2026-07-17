@@ -115,13 +115,13 @@ public class BloodMoonPlugin : BasePlugin
 
     private PluginConfig ReadPluginConfig()
     {
-        return new JsonConfigReader().Read<PluginConfig>(Path.Combine(ModulePath, "config.json"));
+        return new JsonConfigReader().Read<PluginConfig>(ConfigPath);
     }
 
     private IPlayerLocalization GetPlayerLocalization()
     {
         var playerLanguageStore = Capabilities.Get<IPlayerLanguageStore>();
         return new JsonPlayerLocalizationFactory(playerLanguageStore)
-            .Create(Path.Combine(ModulePath, "lang"));
+            .Create(LangDirectory, Id);
     }
 }
